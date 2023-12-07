@@ -98,59 +98,7 @@ mod tests {
         let s = "";
         let num = make_u8(s);
         assert!(num.is_none(), "failed for {}", s);
-    }
 
-    #[test]
-    fn non_numeric_in_first_position_fails() {
-        let lt_zero = (0x00..0x30).collect::<Vec<u8>>();
-        let gt_nine = (0x3a..=0x7f).collect::<Vec<u8>>();
-        let non_numeric: Vec<u8> = [lt_zero, gt_nine].concat();
-
-        for c in non_numeric {
-            let c = c as char;
-            let s = format!("{}", c);
-            let num = make_u8(&s);
-            assert!(num.is_none(), "failed for {}", s);
-
-            for d in '0'..='9' {
-                let s = format!("{}{}", c, d);
-                let num = make_u8(&s);
-                assert!(num.is_none(), "failed for {}", s);
-
-                for e in '0'..='9' {
-                    let s = format!("{}{}{}", c, d, e);
-                    let num = make_u8(&s);
-                    assert!(num.is_none(), "failed for {}", s);
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn non_numeric_in_second_position_fails() {
-        let lt_zero = (0x00..0x30).collect::<Vec<u8>>();
-        let gt_nine = (0x3a..=0x7f).collect::<Vec<u8>>();
-        let non_numeric: Vec<u8> = [lt_zero, gt_nine].concat();
-
-        for c in non_numeric {
-            let c = c as char;
-
-            for d in '0'..='9' {
-                let s = format!("{}{}", d, c);
-                let num = make_u8(&s);
-                assert!(num.is_none(), "failed for {}", s);
-
-                for e in '0'..='9' {
-                    let s = format!("{}{}{}", d, c, e);
-                    let num = make_u8(&s);
-                    assert!(num.is_none(), "failed for {}", s);
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn non_numeric_in_third_position_fails() {
         let lt_zero = (0x00..0x30).collect::<Vec<u8>>();
         let gt_nine = (0x3a..=0x7f).collect::<Vec<u8>>();
         let non_numeric: Vec<u8> = [lt_zero, gt_nine].concat();
@@ -169,7 +117,11 @@ mod tests {
     }
 
     #[test]
-    fn invalid_characters_in_any_position_fail() {
+    fn non_numeric_bytes_in_any_position_fail() {
+        let lt_zero = (0x00..0x30).collect::<Vec<u8>>();
+        let gt_nine = (0x3a..=0xff).collect::<Vec<u8>>();
+        let non_numeric: Vec<u8> = [lt_zero, gt_nine].concat();
+
         let mut u = {
             #[repr(C)]
             union U {
@@ -180,7 +132,7 @@ mod tests {
         };
 
         for pos in 0..3 {
-            for c in 0x80..=0xff {
+            for &c in non_numeric.iter() {
                 unsafe {
                     u.bytes[pos] = c;
                 }
@@ -194,10 +146,6 @@ mod tests {
                         }
                         let s = unsafe { std::str::from_utf8_unchecked(&u.bytes[0..3]) };
                         let num = make_u8(s);
-                        println!("s: {} u: {:8x}", s, unsafe { u.num });
-                        if num.is_some() {
-                            println!("num {}", num.unwrap());
-                        }
                         assert!(num.is_none(), "failed for {}", s);
                     }
                 }
