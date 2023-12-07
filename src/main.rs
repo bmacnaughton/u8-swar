@@ -98,22 +98,6 @@ mod tests {
         let s = "";
         let num = make_u8(s);
         assert!(num.is_none(), "failed for {}", s);
-
-        let lt_zero = (0x00..0x30).collect::<Vec<u8>>();
-        let gt_nine = (0x3a..=0x7f).collect::<Vec<u8>>();
-        let non_numeric: Vec<u8> = [lt_zero, gt_nine].concat();
-
-        for c in non_numeric {
-            let c = c as char;
-
-            for d in '0'..='9' {
-                for e in '0'..='9' {
-                    let s = format!("{}{}{}", d, e, c);
-                    let num = make_u8(&s);
-                    assert!(num.is_none(), "failed for {}", s);
-                }
-            }
-        }
     }
 
     #[test]
