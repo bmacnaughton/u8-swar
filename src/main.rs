@@ -51,7 +51,9 @@ fn make_u8(s: &str) -> Option<u8> {
 
     let num = (mult >> 24) as u8;
 
-    let all_digits = (0x06060606 + working) & 0xF0F0F0F0 == 0;
+    let partial_check = Wrapping(0x06060606) + Wrapping(working);
+    let Wrapping(partial_check) = partial_check;
+    let all_digits = (working | partial_check) & 0xF0F0F0F0 == 0;
     let swapped = u32::from_be_bytes(working.to_le_bytes());
 
     if !all_digits || swapped > 0x00020505 {
@@ -101,7 +103,7 @@ mod tests {
     #[test]
     fn non_numeric_in_first_position_fails() {
         let lt_zero = (0x00..0x30).collect::<Vec<u8>>();
-        let gt_nine = (0x3a..=0xff).collect::<Vec<u8>>();
+        let gt_nine = (0x3a..=0x7f).collect::<Vec<u8>>();
         let non_numeric: Vec<u8> = [lt_zero, gt_nine].concat();
 
         for c in non_numeric {
@@ -127,7 +129,7 @@ mod tests {
     #[test]
     fn non_numeric_in_second_position_fails() {
         let lt_zero = (0x00..0x30).collect::<Vec<u8>>();
-        let gt_nine = (0x3a..=0xff).collect::<Vec<u8>>();
+        let gt_nine = (0x3a..=0x7f).collect::<Vec<u8>>();
         let non_numeric: Vec<u8> = [lt_zero, gt_nine].concat();
 
         for c in non_numeric {
@@ -150,7 +152,7 @@ mod tests {
     #[test]
     fn non_numeric_in_third_position_fails() {
         let lt_zero = (0x00..0x30).collect::<Vec<u8>>();
-        let gt_nine = (0x3a..=0xff).collect::<Vec<u8>>();
+        let gt_nine = (0x3a..=0x7f).collect::<Vec<u8>>();
         let non_numeric: Vec<u8> = [lt_zero, gt_nine].concat();
 
         for c in non_numeric {
@@ -161,6 +163,43 @@ mod tests {
                     let s = format!("{}{}{}", d, e, c);
                     let num = make_u8(&s);
                     assert!(num.is_none(), "failed for {}", s);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn invalid_characters_in_any_position_fail() {
+        let mut u = {
+            #[repr(C)]
+            union U {
+                bytes: [u8; 4],
+                num: u32,
+            }
+            U { num: 0 }
+        };
+
+        for pos in 0..3 {
+            for c in 0x80..=0xff {
+                unsafe {
+                    u.bytes[pos] = c;
+                }
+                for d in '0'..='9' {
+                    unsafe {
+                        u.bytes[(pos + 1) % 3] = d as u8;
+                    }
+                    for e in '0'..='9' {
+                        unsafe {
+                            u.bytes[(pos + 2) % 3] = e as u8;
+                        }
+                        let s = unsafe { std::str::from_utf8_unchecked(&u.bytes[0..3]) };
+                        let num = make_u8(s);
+                        println!("s: {} u: {:8x}", s, unsafe { u.num });
+                        if num.is_some() {
+                            println!("num {}", num.unwrap());
+                        }
+                        assert!(num.is_none(), "failed for {}", s);
+                    }
                 }
             }
         }
